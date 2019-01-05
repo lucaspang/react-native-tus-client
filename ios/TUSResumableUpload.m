@@ -68,6 +68,8 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
 @property (nonatomic, strong) NSURL *fileUrl; // File URL for saving if we created our own TUSData
 @property (readonly) long long length;
 
+@property (nonatomic) long long chunkSize; //how big chunks we send to the server
+
 #pragma mark private method headers
 
 /**
@@ -115,14 +117,14 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
         NSLog(@"URL provided to TUSResumableUpload is not a file URL: %@", fileUrl);
         return nil;
     }
-    
+
     // Set up metadata with filename
     NSMutableDictionary *uploadMetadata = [NSMutableDictionary new];
     uploadMetadata[@"filename"] = fileUrl.filePathURL.lastPathComponent;
     if (metadata){
         [uploadMetadata addEntriesFromDictionary:metadata];
     }
-    
+
     return [self initWithUploadId:uploadId
                              file:fileUrl
                          delegate:delegate
@@ -130,7 +132,7 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
                     finalMetadata:uploadMetadata
                             state:TUSResumableUploadStateCreatingFile
                         uploadUrl:nil];
-    
+
 }
 
 
@@ -156,7 +158,8 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
         _state = state;
         _uploadUrl = uploadUrl;
         _idle = YES;
-        
+        _chunkSize = -1;
+
         if (_state != TUSResumableUploadStateComplete){
             _data = [[TUSFileData alloc] initWithFileURL:fileUrl];
             if (!_data){
@@ -201,8 +204,6 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
     return [self continueUpload];
 }
 
-
-
 #pragma mark property getters and setters
 - (long long) length {
     return self.data.length;
@@ -211,6 +212,10 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
 - (BOOL)complete
 {
     return self.state == TUSResumableUploadStateComplete;
+}
+
+- (void)setChunkSize:(long long)chunkSize {
+    _chunkSize = chunkSize;
 }
 
 #pragma mark internal methods
@@ -245,17 +250,17 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
 {
     self.state = TUSResumableUploadStateCreatingFile;
     self.offset = 0; // Reset the offset to zero if we're creating a new file.
-    
+
     long long size = self.data.length;
-    
+
     NSMutableDictionary *mutableHeader = [NSMutableDictionary dictionary];
-    
+
     // Upload-Metadata is a custom formatted string
     NSMutableArray <NSString *> *formattedMetadata = [NSMutableArray new];
     for (NSString *entry in self.metadata) {
         NSMutableString *formattedEntry = [[NSMutableString alloc] initWithString:entry];
         [formattedEntry appendString:@" "];
-        
+
         NSData *plainData = [self.metadata[entry] dataUsingEncoding:NSUTF8StringEncoding];
         NSString *base64String = [plainData base64EncodedStringWithOptions:0];
         [formattedEntry appendString:base64String];
@@ -263,14 +268,14 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
     }
     NSString* stripColon = [[formattedMetadata componentsJoinedByString:@","] stringByReplacingOccurrencesOfString:@":" withString:@""];
     [mutableHeader setObject:stripColon forKey:@"Upload-Metadata"];
-    
+
     // Add custom headers after the filename, as the upload-metadata may be customized
     [mutableHeader addEntriesFromDictionary:[self uploadHeaders]];
-    
+
     // Set the version & length last as they are determined by the uploader
     [mutableHeader setObject:[NSString stringWithFormat:@"%lld", size] forKey:HTTP_UPLOAD_LENGTH];
     [mutableHeader setObject:HTTP_TUS_VERSION forKey:HTTP_TUS];
-    
+
     NSURL *createUploadURL = self.delegate.createUploadURL;
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:createUploadURL
                                                                 cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
@@ -278,9 +283,9 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
     [request setHTTPMethod:HTTP_POST];
     [request setHTTPShouldHandleCookies:NO];
     [request setAllHTTPHeaderFields:mutableHeader];
-    
+
     __weak TUSResumableUpload * weakself = self;
-    
+
     #if TARGET_OS_IPHONE
     UIBackgroundTaskIdentifier bgTask = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:^{
         [weakself cancel];
@@ -292,7 +297,7 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
             [weakself.delegate removeTask:weakself.currentTask];
             weakself.currentTask = nil;
         }
-        
+
         NSUInteger delayTime = 0; // No delay
         NSHTTPURLResponse * httpResponse;
         if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
@@ -352,7 +357,7 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
         #elif defined TARGET_OS_OSX
             [weakself cancel];
         #endif
-        
+
         if (delayTime > 0) {
             __weak NSOperationQueue *weakQueue = [NSOperationQueue currentQueue];
             // Delay some time before we try again.  We use a weak queue pointer because if the queue goes away, presumably the session has too (the session should have a strong pointer to the queue).
@@ -376,19 +381,19 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
 - (BOOL) checkFile
 {
     self.state = TUSResumableUploadStateCheckingFile;
-    
+
     NSMutableDictionary *mutableHeader = [NSMutableDictionary dictionary];
     [mutableHeader addEntriesFromDictionary:[self uploadHeaders]];
     [mutableHeader setObject:HTTP_TUS_VERSION forKey:HTTP_TUS];
-    
+
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:self.uploadUrl
                                                                 cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
                                                             timeoutInterval:REQUEST_TIMEOUT];
-    
+
     [request setHTTPMethod:HTTP_HEAD];
     [request setHTTPShouldHandleCookies:NO];
     [request setAllHTTPHeaderFields:mutableHeader];
-    
+
     __weak TUSResumableUpload * weakself = self;
     #if TARGET_OS_IPHONE
         UIBackgroundTaskIdentifier bgTask = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:^{
@@ -479,7 +484,7 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
 -(BOOL)uploadFile
 {
     self.state = TUSResumableUploadStateUploadingFile;
-    
+
     NSMutableDictionary *mutableHeader = [NSMutableDictionary dictionary];
     [mutableHeader addEntriesFromDictionary:[self uploadHeaders]];
     [mutableHeader setObject:[NSString stringWithFormat:@"%lld", self.offset] forKey:HTTP_OFFSET];
@@ -488,17 +493,25 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
 
     TUSLog(@"Resuming upload to %@ with id %@ from offset %lld",
            self.uploadUrl, self.uploadId, self.offset);
-    
+
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:self.uploadUrl
                                                                 cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
                                                             timeoutInterval:REQUEST_TIMEOUT];
     [request setHTTPMethod:HTTP_PATCH];
     [request setHTTPShouldHandleCookies:NO];
     [request setAllHTTPHeaderFields:mutableHeader];
+
     [self.data setOffset:self.offset]; // Advance the offset of data to the expected value
-    request.HTTPBodyStream = self.data.dataStream;
-    
-    
+
+    //If we are using chunked sizes, set the chunkSize and retrieve the data
+    //with the offset and size of self.chunkSize
+    if (self.chunkSize > 0) {
+        request.HTTPBody = [self.data dataChunk:self.chunkSize];
+        TUSLog(@"Uploading chunk sized %lu / %lld ", request.HTTPBody.length, self.chunkSize);
+    } else {
+        request.HTTPBodyStream = self.data.dataStream;
+    }
+
     __weak TUSResumableUpload * weakself = self;
     #if TARGET_OS_IPHONE
         UIBackgroundTaskIdentifier bgTask = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:^{
@@ -593,7 +606,7 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
 
 -(NSDictionary *) serialize
 {
-    
+
     NSObject *fileUrlData = [NSNull null];
     if (self.fileUrl){
         NSError *error;
@@ -604,7 +617,7 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
             fileUrlData = bookmarkData;
         }
     }
-    
+
     return @{STORE_KEY_ID: self.uploadId,
              STORE_KEY_DELEGATE_ENDPOINT: self.delegate.createUploadURL.absoluteString,
              STORE_KEY_UPLOAD_URL:  self.state == TUSResumableUploadStateCreatingFile? [NSNull null] : self.uploadUrl.absoluteString, //If we are creating the file, there is no upload URL
@@ -613,7 +626,7 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
              STORE_KEY_METADATA: self.metadata,
              STORE_KEY_UPLOAD_HEADERS: self.uploadHeaders,
              STORE_KEY_FILE_URL: fileUrlData};
-    
+
 }
 
 -(instancetype)initWithDictionary:(NSDictionary *)serializedUpload delegate:(id<TUSResumableUploadDelegate>)delegate
@@ -622,7 +635,7 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
     if (serializedUpload == nil) {
         return nil;
     }
-    
+
     // Get parameters
     NSNumber *uploadId = serializedUpload[STORE_KEY_ID];
     NSNumber *expectedLength = serializedUpload[STORE_KEY_LENGTH];
@@ -631,13 +644,13 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
     NSDictionary *metadata = serializedUpload[STORE_KEY_METADATA];
     NSDictionary *headers = serializedUpload[STORE_KEY_UPLOAD_HEADERS];
     NSDictionary *uploadUrl = [NSURL URLWithString:serializedUpload[STORE_KEY_UPLOAD_URL]];
-    
+
     NSURL * savedDelegateEndpoint = [NSURL URLWithString:serializedUpload[STORE_KEY_DELEGATE_ENDPOINT]];
     if (![savedDelegateEndpoint.absoluteString isEqualToString:delegate.createUploadURL.absoluteString]){ // Check saved delegate endpoint
         NSLog(@"Delegate URL in stored dictionary for %@ (%@) does not match the one in the passed-in delegate %@", uploadId, savedDelegateEndpoint, delegate.createUploadURL);
         return nil;
     }
-    
+
     NSURL *fileUrl = nil;
     if(serializedUpload[STORE_KEY_FILE_URL] != [NSNull null]){
         NSError *error;
@@ -653,7 +666,7 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
             NSLog(@"Error loading size of file saved at %@ when restoring upload %@", fileUrl, uploadId);
             return nil;
         }
-        
+
         if (fileSize.unsignedLongLongValue != expectedLength.unsignedLongLongValue){
             NSLog(@"Expected file size (%ulld) for saved upload %@ does not match actual file size (%ulld)", fileSize.unsignedLongLongValue, uploadId, expectedLength.unsignedLongLongValue);
             return nil;
@@ -663,12 +676,12 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
         //TODO: Implement code to resume a non-file-based upload
         return nil;
     }
-    
+
     // If the upload was previously uploading, we need to do a check before we can continue.
     if (state == TUSResumableUploadStateUploadingFile){
         state = TUSResumableUploadStateCheckingFile;
     }
-    
+
     return [self initWithUploadId:uploadId
                              file:fileUrl
                          delegate:delegate

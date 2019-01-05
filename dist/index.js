@@ -2,6 +2,7 @@ import { NativeModules, NativeEventEmitter } from 'react-native';
 const { RNTusClient } = NativeModules;
 const tusEventEmitter = new NativeEventEmitter(RNTusClient);
 const defaultOptions = {
+    chunkSize: 0,
     headers: {},
     metadata: {}
 };
@@ -66,8 +67,8 @@ class Upload {
     }
     createUpload() {
         return new Promise((resolve, reject) => {
-            const { metadata, headers, endpoint } = this.options;
-            const settings = { metadata, headers, endpoint };
+            const { metadata, headers, endpoint, chunkSize } = this.options;
+            const settings = { metadata, headers, endpoint, chunkSize };
             RNTusClient.createUpload(this.file, settings, (uploadId, errorMessage) => {
                 this.uploadId = uploadId;
                 if (uploadId == null) {

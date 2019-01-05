@@ -11,6 +11,8 @@ const tusEventEmitter = new NativeEventEmitter(RNTusClient);
 interface Options {
   /** URL used to create a new upload */
   endpoint: string;
+  /** A number indicating the maximum size of a chunk in bytes which will be uploaded in a single request. */
+  chunkSize?: number;
   /** An object with custom header values used in all requests. */
   headers?: object;
   /** An object with string values used as additional meta data
@@ -36,6 +38,7 @@ interface Options {
 }
 
 const defaultOptions = {
+  chunkSize: 0,
   headers: { },
   metadata: { }
 };
@@ -126,8 +129,8 @@ class Upload {
   private createUpload (): Promise<void> {
     return new Promise((resolve, reject) => {
 
-      const { metadata, headers, endpoint } = this.options;
-      const settings = { metadata, headers, endpoint };
+      const { metadata, headers, endpoint, chunkSize } = this.options;
+      const settings = { metadata, headers, endpoint, chunkSize };
 
       RNTusClient.createUpload(
         this.file,

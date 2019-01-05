@@ -2,6 +2,10 @@
 interface Options {
     /** URL used to create a new upload */
     endpoint: string;
+    /**
+      * A number indicating the maximum size of a chunk in bytes which will be uploaded in a single request.
+      */
+    chunkSize?: number;
     /** An object with custom header values used in all requests. */
     headers?: object;
     /** An object with string values used as additional meta data
@@ -55,13 +59,13 @@ declare class Upload {
      * You can resume the upload by calling the start method again.
      */
     abort(): void;
-    private resume();
-    private emitError(error);
-    private createUpload();
-    private subscribe();
-    private unsubscribe();
-    private onSuccess();
-    private onProgress(bytesUploaded, bytesTotal);
-    private onError(error);
+    private resume;
+    private emitError;
+    private createUpload;
+    private subscribe;
+    private unsubscribe;
+    private onSuccess;
+    private onProgress;
+    private onError;
 }
 export { Options, Upload };

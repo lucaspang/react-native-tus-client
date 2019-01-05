@@ -67,6 +67,7 @@ RCT_EXPORT_METHOD(createUpload:(NSString *)fileUrl
                   )
 {
     NSString *endpoint = [NSString stringWithString: options[@"endpoint"]];
+    long long chunkSize = [options[@"chunkSize"] longLongValue];
     NSDictionary *headers = options[@"headers"];
     NSDictionary *metadata = options[@"metadata"];
 
@@ -77,13 +78,14 @@ RCT_EXPORT_METHOD(createUpload:(NSString *)fileUrl
       : fileUrl
     ];
     TUSResumableUpload *upload = [session createUploadFromFile:url headers:headers metadata:metadata];
+    [upload setChunkSize:chunkSize];
 
     [self.endpoints setObject:endpoint forKey: upload.uploadId];
 
     __weak TUSResumableUpload *_upload = upload;
     __weak RNTusClient *weakSelf = self;
-    
-    
+
+
     upload.resultBlock = ^(NSURL * _Nonnull fileURL) {
         [weakSelf sendEventWithName:ON_SUCCESS body:@{
             @"uploadId": _upload.uploadId,

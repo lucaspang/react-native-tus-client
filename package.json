@@ -28,7 +28,7 @@
     "react-native": "^0.41.2"
   },
   "devDependencies": {
-    "@types/react-native": "^0.52.13",
+    "@types/react-native": "^0.56.4",
     "tslint": "^5.9.1",
     "tslint-config-standard": "^7.0.0",
     "typescript": "^2.7.2"

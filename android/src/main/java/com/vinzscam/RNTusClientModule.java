@@ -59,6 +59,7 @@ public class RNTusClientModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void createUpload(String fileUrl, ReadableMap options, Callback callback) {
     String endpoint = options.getString("endpoint");
+    int chunkSize = options.getInt("chunkSize");
     Map<String, Object> rawHeaders = options.getMap("headers").toHashMap();
     Map<String, Object> rawMetadata = options.getMap("metadata").toHashMap();
 
@@ -115,14 +116,17 @@ public class RNTusClientModule extends ReactContextBaseJavaModule {
     private TusClient client;
     private boolean shouldFinish;
     private boolean isRunning;
+    private int chunkSize;
 
     public TusRunnable(String fileUrl,
                        String uploadId,
                        String endpoint,
+                       int chunkSize,
                        Map<String, String> metadata,
                        Map<String, String>headers
     ) throws FileNotFoundException, MalformedURLException {
       this.uploadId = uploadId;
+      this.chunkSize = chunkSize;
       client = new TusClient();
       client.setUploadCreationURL(new URL(endpoint));
 
@@ -138,7 +142,9 @@ public class RNTusClientModule extends ReactContextBaseJavaModule {
 
     protected void makeAttempt() throws ProtocolException, IOException {
       uploader = client.resumeOrCreateUpload(upload);
-      uploader.setChunkSize(1024);
+      if (this.chunkSize > 0) {
+        uploader.setChunkSize(this.chunkSize);
+      }
       uploader.setRequestPayloadSize(10 * 1024 * 1024);
       do {
         long totalBytes = upload.getSize();

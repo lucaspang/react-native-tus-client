@@ -70,7 +70,7 @@
   allowsCellularAccess:(BOOL)allowsCellularAccess
 {
     self = [super init];
-    
+
     if (self) {
         _store = store; // TODO: Load uploads from store
         _createUploadURL = endpoint;
@@ -87,14 +87,13 @@
                                       metadata:(NSDictionary <NSString *, NSString *> * __nullable)metadata
 {
     TUSResumableUpload *upload = [[TUSResumableUpload alloc]  initWithUploadId:[self.store generateUploadId] file:fileURL delegate:self uploadHeaders:headers?:@{} metadata:metadata];
-    
+
     if (upload){
         self.uploads[upload.uploadId] = upload; // Save the upload by ID for later
     }
-    
+
     return upload;
 }
-
 
 /**
  Restore an upload, but do not start it.  Uploads must be restored by ID because file URLs can change between launch.
@@ -117,12 +116,12 @@
 {
     // First fetch all the stored background upload identifiers
     NSArray <NSString *> *uploadIds = [self.store allUploadIdentifiers];
-    
+
     // Attempt to pull the background upload from the session's in memory store
     for (NSString * uploadId in uploadIds) {
         [self restoreUpload:uploadId]; // Restore the upload
     }
-    
+
     return self.uploads.allValues;
 }
 

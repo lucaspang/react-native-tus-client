@@ -38,7 +38,7 @@ typedef void (^TUSUploadProgressBlock)(int64_t bytesWritten, int64_t bytesTotal)
  The upload is complete if the file has been completely uploaded to the TUS server
 */
  @property (readonly) BOOL complete;
- 
+
 
 /**
  The upload is idle if no HTTP tasks are currently outstanding for it
@@ -64,5 +64,11 @@ typedef void (^TUSUploadProgressBlock)(int64_t bytesWritten, int64_t bytesTotal)
  Resume the upload if it was cancelled or not yet started
  */
 - (BOOL) resume;
+
+/**
+ Lazily instantiate the chunkSize for the upload
+ */
+- (void)setChunkSize:(long long)chunkSize;
+
 @end
 

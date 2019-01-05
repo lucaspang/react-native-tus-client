@@ -44,13 +44,14 @@
 }
 
 #pragma mark - Public Methods
+
 - (NSInputStream*)dataStream
 {
     if (self.inputStream.streamStatus == NSStreamStatusClosed){
         // Stream has been closed, destroy the existing ones
         [self stop];
     }
-    
+
     if (!self.inputStream) {
         // There is no _inputStream, so we should lazily instantiate
         NSInputStream* inStream = nil;
@@ -102,6 +103,15 @@
     return length;
 }
 
+
+- (NSData*)dataChunk:(long long)chunkSize {
+    return [self dataChunk:chunkSize fromOffset:_offset];
+}
+
+- (NSData*)dataChunk:(long long)chunkSize
+          fromOffset: (NSUInteger)offset {
+    return [_data subdataWithRange:NSMakeRange(offset, chunkSize)];
+}
 
 #pragma mark - NSStreamDelegate Protocol Methods
 - (void)stream:(NSStream *)aStream

@@ -23,7 +23,7 @@
     if (![[NSFileManager defaultManager] isReadableFileAtPath:url.filePathURL]  ){
         return nil;
     }
-    
+
     self = [super init];
     if (self){
         self.fileURL = url;
@@ -43,7 +43,7 @@
         }
     }
     return _length;
-    
+
 }
 
 - (NSUInteger)getBytes:(uint8_t *)buffer
@@ -63,13 +63,13 @@
             }
             return 0;
         }
-        
+
         [self.fileHandle seekToFileOffset:offset];
         NSData *readData = [self.fileHandle readDataOfLength:length];
         [readData getBytes:buffer length:length]; // readData has at most 'length' bytes because we did readDataOfLength above. Therefore all bytes are copied.
         return readData.length; // As all bytes from readData are copied into the buffer, this is always correct.
     }
-    
+
 }
 
 -(void)close
@@ -80,7 +80,7 @@
         self.closed = YES;
     }
 }
-    
+
 -(BOOL)open
 {
     @synchronized (self) {
@@ -94,6 +94,22 @@
         self.closed = NO;
         return YES;
     }
-    
+
+}
+
+- (NSData*)dataChunk:(long long)chunkSize
+          fromOffset: (NSUInteger)offset
+{
+    [self.fileHandle seekToFileOffset:offset];
+    NSData *chunkData = [self.fileHandle readDataOfLength:chunkSize];
+    return chunkData;
+}
+
+- (NSData*)dataChunk:(long long)chunkSize
+          fromOffset: (NSUInteger)offset
+{
+    [self.fileHandle seekToFileOffset:offset];
+    NSData *chunkData = [self.fileHandle readDataOfLength:chunkSize];
+    return chunkData;
 }
 @end

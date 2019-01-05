@@ -117,6 +117,7 @@ options | object | The options argument used to setup your tus upload. See below
 Property | Type | Mandatory | Description
 -------- | ---- | --------- | :----------
 endpoint | string | **Yes** | URL used to create the upload
+chunkSize | number | No | A number indicating the maximum size of a chunk in bytes which will be uploaded in a single request. This can be used when a server or proxy has a limit on how big request bodies may be. Note that if the server has hard limits (such as the minimum 5MB chunk size imposed by S3), specifying a chunk size which falls outside those hard limits will cause chunked uploads to fail.
 headers | object | No | An object with custom header values used in all requests.
 metadata | object | No | An object with string values used as additional meta data which will be passed along to the server when (and only when) creating a new upload. Can be used for filenames, file types etc.
 onError | function | No | a function called once an error appears. The arguments will be an `Error` instance.
