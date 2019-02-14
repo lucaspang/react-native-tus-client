@@ -77,7 +77,7 @@ public class RNTusClientModule extends ReactContextBaseJavaModule {
     try {
       upload = new TusUpload(file);
       String uploadId = UUID.randomUUID().toString();
-      TusRunnable executor = new TusRunnable(fileUrl, uploadId, endpoint, metadata, headers);
+      TusRunnable executor = new TusRunnable(fileUrl, uploadId, endpoint, chunkSize, metadata, headers);
       this.executorsMap.put(uploadId, executor);
       callback.invoke(uploadId);
     } catch(FileNotFoundException | MalformedURLException e) {
