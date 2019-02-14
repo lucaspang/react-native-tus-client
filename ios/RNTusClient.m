@@ -1,5 +1,6 @@
 #import "RNTusClient.h"
 #import "TUSKit.h"
+#import "RCTUtils.h"
 
 #define ON_SUCCESS @"onSuccess"
 #define ON_ERROR @"onError"
@@ -94,7 +95,7 @@ RCT_EXPORT_METHOD(createUpload:(NSString *)fileUrl
     };
 
     upload.failureBlock = ^(NSError * _Nonnull error) {
-        [weakSelf sendEventWithName:ON_ERROR body:@{ @"uploadId": _upload.uploadId, @"error": error }];
+        [weakSelf sendEventWithName:ON_ERROR body:@{ @"uploadId": _upload.uploadId, @"error": RCTJSErrorFromNSError(error) }];
     };
 
     upload.progressBlock = ^(int64_t bytesWritten, int64_t bytesTotal) {
