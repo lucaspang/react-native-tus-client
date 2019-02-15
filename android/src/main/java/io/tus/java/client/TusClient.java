@@ -147,7 +147,10 @@ public class TusClient {
         connection.connect();
 
         int responseCode = connection.getResponseCode();
-        if(!(responseCode >= 200 && responseCode < 300)) {
+        if (responseCode == 406 || responseCode == 413 || responseCode == 415 || responseCode == 422 || responseCode == 503) {
+            throw new ProtocolException("" + responseCode + "", connection);
+        }
+        else if(!(responseCode >= 200 && responseCode < 300)) {
             throw new ProtocolException("unexpected status code (" + responseCode + ") while creating upload", connection);
         }
 
@@ -202,7 +205,10 @@ public class TusClient {
         connection.connect();
 
         int responseCode = connection.getResponseCode();
-        if(!(responseCode >= 200 && responseCode < 300)) {
+        if (responseCode == 406 || responseCode == 413 || responseCode == 415 || responseCode == 422 || responseCode == 503) {
+            throw new ProtocolException("" + responseCode + "", connection);
+        }
+        else if(!(responseCode >= 200 && responseCode < 300)) {
             throw new ProtocolException("unexpected status code (" + responseCode + ") while resuming upload", connection);
         }
 

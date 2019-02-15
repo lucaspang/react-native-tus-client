@@ -277,7 +277,10 @@ public class TusUploader {
             int responseCode = connection.getResponseCode();
             connection.disconnect();
 
-            if (!(responseCode >= 200 && responseCode < 300)) {
+            if (responseCode == 406 || responseCode == 413 || responseCode == 415 || responseCode == 422 || responseCode == 503) {
+                throw new ProtocolException("" + responseCode + "", connection);
+            }
+            else if (!(responseCode >= 200 && responseCode < 300)) {
                 throw new ProtocolException("unexpected status code (" + responseCode + ") while uploading chunk", connection);
             }
 

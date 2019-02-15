@@ -32,7 +32,7 @@ public class ProtocolException extends Exception {
             int responseCode = connection.getResponseCode();
 
             // 5XX and 423 Resource Locked status codes should be retried.
-            return (responseCode >= 500 && responseCode < 600) || responseCode == 423;
+            return ((responseCode >= 500 && responseCode < 600) && responseCode != 503) || responseCode == 423;
         } catch(IOException e) {
             return false;
         }
