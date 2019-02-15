@@ -323,6 +323,19 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
                     delayTime = DELAY_TIME;
                     TUSLog(@"Error or no response during attempt to create file, retrying");
             }
+        } else if (httpResponse.statusCode == 413 || httpResponse.statusCode == 415 || httpResponse.statusCode == 422 || httpResponse.statusCode == 406) {
+            TUSLog(@"File error, stopping");
+            weakself.state = TUSResumableUploadStateCheckingFile;
+            [weakself stop]; // Will prevent continueUpload from doing anything
+            // Make the callback after the current operation so that the rest of the method will finish.
+            // Store the block so that we know it will be non-nil in the closure.
+            TUSUploadFailureBlock block = weakself.failureBlock;
+            if (block) {
+                NSInteger statusCode = httpResponse.statusCode;
+                [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                    block([[NSError alloc] initWithDomain:TUSErrorDomain code:TUSResumableUploadErrorServer userInfo:@{@"responseCode": @(statusCode)}]);
+                }];
+            }
         } else if (httpResponse.statusCode >= 500 && httpResponse.statusCode < 600) {
             TUSLog(@"Server error, stopping");
             [weakself stop]; // Will prevent continueUpload from doing anything
@@ -436,6 +449,19 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
             // We only check 423 errors in checkFile because the other methods will properly handle locks with their generic error handling.
             TUSLog(@"File is locked, waiting and retrying");
             delayTime = DELAY_TIME; // Delay to wait for locks.
+        } else if (httpResponse.statusCode == 413 || httpResponse.statusCode == 415 || httpResponse.statusCode == 422 || httpResponse.statusCode == 406) {
+            TUSLog(@"File error, stopping");
+            weakself.state = TUSResumableUploadStateCheckingFile;
+            [weakself stop]; // Will prevent continueUpload from doing anything
+            // Make the callback after the current operation so that the rest of the method will finish.
+            // Store the block so that we know it will be non-nil in the closure.
+            TUSUploadFailureBlock block = weakself.failureBlock;
+            if (block) {
+                NSInteger statusCode = httpResponse.statusCode;
+                [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                    block([[NSError alloc] initWithDomain:TUSErrorDomain code:TUSResumableUploadErrorServer userInfo:@{@"responseCode": @(statusCode)}]);
+                }];
+            }
         } else if (httpResponse.statusCode >= 500 && httpResponse.statusCode < 600) {
             TUSLog(@"Server error, stopping");
             [weakself stop]; // Will prevent continueUpload from doing anything
@@ -531,6 +557,19 @@ typedef void(^NSURLSessionTaskCompletionHandler)(NSData * _Nullable data, NSURLR
             TUSLog(@"Error or no response during attempt to upload file, checking state");
             // No need to delay, because we are changing states - if there is a network or server error, it will keep delaying there
             weakself.state = TUSResumableUploadStateCheckingFile;
+        } else if (httpResponse.statusCode == 413 || httpResponse.statusCode == 415 || httpResponse.statusCode == 422 || httpResponse.statusCode == 406) {
+            TUSLog(@"File error, stopping");
+            weakself.state = TUSResumableUploadStateCheckingFile;
+            [weakself stop]; // Will prevent continueUpload from doing anything
+            // Make the callback after the current operation so that the rest of the method will finish.
+            // Store the block so that we know it will be non-nil in the closure.
+            TUSUploadFailureBlock block = weakself.failureBlock;
+            if (block) {
+                NSInteger statusCode = httpResponse.statusCode;
+                [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                    block([[NSError alloc] initWithDomain:TUSErrorDomain code:TUSResumableUploadErrorServer userInfo:@{@"responseCode": @(statusCode)}]);
+                }];
+            }
         } else if (httpResponse.statusCode >= 500 && httpResponse.statusCode < 600) {
             TUSLog(@"Server error, stopping");
             weakself.state = TUSResumableUploadStateCheckingFile;
