@@ -26,6 +26,11 @@
     return self;
 }
 
++ (BOOL)requiresMainQueueSetup
+{
+    return NO;
+}
+
 - (TUSUploadStore *)uploadStore {
     if(_uploadStore == nil) {
         NSFileManager *fileManager = [NSFileManager defaultManager];
